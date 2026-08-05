@@ -1,3 +1,7 @@
+#!/bin/bash
+set -e
+
+cat > app/globals.css << 'FIXSEARCHEOF'
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css");
 
 :root {
@@ -761,3 +765,6 @@ form > button[type="submit"] {
 .header-search button[type="submit"]:hover {
   background: var(--color-navy-light);
 }
+FIXSEARCHEOF
+
+echo "적용 완료. npm run dev 재시작 후 확인하세요."
