@@ -1,3 +1,7 @@
+#!/bin/bash
+set -e
+
+cat > app/globals.css << 'FIXPADEOF'
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css");
 
 :root {
@@ -630,113 +634,6 @@ form > button[type="submit"] {
   padding: 20px 24px 24px;
 }
 
-/* AIRPORT - 공항 정보 카드 */
-.airport-info-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
-  margin-bottom: 20px;
-  overflow: hidden;
-  max-width: 640px;
-}
-
-.airport-info-row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.airport-info-row:last-child {
-  border-bottom: none;
-}
-
-.airport-info-label {
-  width: 90px;
-  flex-shrink: 0;
-  font-weight: 700;
-  font-size: 13px;
-  color: var(--color-navy);
-}
-
-.airport-info-value {
-  flex: 1;
-  font-size: 13px;
-  color: var(--color-text);
-}
-
-.airport-info-image {
-  max-height: 120px;
-  border-radius: 6px;
-  border: 1px solid var(--color-border);
-}
-
-.airport-info-edit-btn {
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 5px 12px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  color: var(--color-navy);
-  flex-shrink: 0;
-}
-
-.airport-info-edit-btn:hover {
-  border-color: var(--color-orange);
-  color: var(--color-orange-dark);
-}
-
-.airport-info-clear-btn {
-  background: var(--color-bg);
-  border: 1px solid #fda29b;
-  border-radius: 8px;
-  padding: 5px 12px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  color: var(--color-danger);
-  flex-shrink: 0;
-}
-
-.airport-info-clear-btn:hover {
-  background: #fef3f2;
-}
-
-.airport-info-clear-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.airport-info-edit-form {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.airport-info-edit-form input[type="text"] {
-  flex: 1;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 13px;
-}
-
-.airport-info-edit-actions {
-  display: flex;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.airport-info-edit-actions button {
-  font-size: 12px;
-  padding: 6px 10px;
-}
-
 .dashboard-list-title {
   text-decoration: none;
   color: var(--color-text);
@@ -763,55 +660,6 @@ form > button[type="submit"] {
   padding-bottom: 8px;
   border-bottom: 2px solid var(--color-orange);
 }
+FIXPADEOF
 
-/* 메인 헤더 - 전체 검색 */
-.header-search {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  background: #fff;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  overflow: hidden;
-  height: 38px;
-}
-
-.header-search input {
-  border: none;
-  padding: 0 12px;
-  font-size: 13px;
-  width: 220px;
-  height: 100%;
-  margin: 0;
-}
-
-.header-search input:focus {
-  outline: none;
-  box-shadow: none;
-}
-
-.header-search button {
-  border: none;
-  background: var(--color-navy);
-  color: #fff;
-  height: 100%;
-  padding: 0 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.header-search button:hover {
-  background: var(--color-navy-light);
-}
-
-.search-section-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-navy);
-  margin-bottom: 10px;
-}
+echo "적용 완료. npm run dev 재시작 후 확인하세요."

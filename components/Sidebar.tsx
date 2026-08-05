@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { IconPin, IconFolder, IconPlane, IconContact } from "./icons";
 
 const menuItems = [
-  { href: "/notices", label: "업무지시공유", icon: "📌" },
-  { href: "/resources", label: "자료실", icon: "📁" },
-  { href: "/tasks", label: "업무관리", icon: "✅" },
+  { href: "/notices", label: "업무지시공유", Icon: IconPin },
+  { href: "/resources", label: "자료실", Icon: IconFolder },
+  { href: "/tasks", label: "AIRPORT", Icon: IconPlane },
+  { href: "/contacts", label: "계정/연락망", Icon: IconContact },
 ];
 
 export default function Sidebar() {
@@ -25,7 +27,9 @@ export default function Sidebar() {
         {menuItems.map((item) => (
           <Link key={item.href} href={item.href}>
             <div className={`menu ${pathname === item.href ? "active" : ""}`}>
-              <span className="menu-icon">{item.icon}</span>
+              <span className="menu-icon">
+                <item.Icon size={16} />
+              </span>
               {item.label}
             </div>
           </Link>

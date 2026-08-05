@@ -1,3 +1,7 @@
+#!/bin/bash
+set -e
+
+cat > app/tasks/TaskBoard.tsx << 'AIRPORTCITIESEOF'
 'use client'
 
 import { useState } from 'react'
@@ -219,3 +223,6 @@ export default function TaskBoard({
     </div>
   )
 }
+AIRPORTCITIESEOF
+
+echo "적용 완료. npm run dev 재시작 후 확인하세요."

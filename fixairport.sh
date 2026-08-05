@@ -1,3 +1,9 @@
+#!/bin/bash
+set -e
+
+mkdir -p app/tasks
+
+cat > app/tasks/TaskBoard.tsx << 'FIXAIRPORTEOF'
 'use client'
 
 import { useState } from 'react'
@@ -28,41 +34,23 @@ type Doc = {
 }
 
 const DOMESTIC = ['ICN', 'GMP', 'CJU', 'PUS', 'TAE', 'CJJ', 'KWJ']
-
-const INTERNATIONAL_REGIONS: Record<string, string[]> = {
-  Japan: ['FUK', 'HIJ', 'KOJ', 'UKB', 'MYJ', 'NGO', 'OIT', 'OKA', 'KIX', 'CTS', 'FSZ', 'NRT'],
-  'Northeast Asia': [
-    'PEK',
-    'PKX',
-    'KWL',
-    'HRB',
-    'JMU',
-    'TAO',
-    'PVG',
-    'SJW',
-    'WEH',
-    'YNJ',
-    'DYG',
-    'HKG',
-    'MFM',
-    'KHH',
-    'TPE',
-  ],
-  Vietnam: ['DAD', 'HAN', 'CXR', 'PQC'],
-  Philippines: ['CRK', 'CEB', 'MNL', 'TAG'],
-  Indonesia: ['BTH', 'DPS'],
-  Singapore: ['SIN'],
-  'Thailand / Laos': ['BKK', 'CNX', 'VTE'],
-  Malaysia: ['BKI'],
-  Saipan: ['SPN'],
-  Mongolia: ['UBN'],
-}
+const INTERNATIONAL = [
+  'Japan',
+  'Northeast Asia',
+  'Vietnam',
+  'Philippines',
+  'Indonesia',
+  'Singapore',
+  'Thailand / Laos',
+  'Malaysia',
+  'Saipan',
+  'Mongolia',
+]
 
 type Step =
   | { level: 'list' }
-  | { level: 'region'; region: string }
-  | { level: 'sub'; airport: string; parent: Step }
-  | { level: 'content'; airport: string; parent: Step }
+  | { level: 'sub'; airport: string }
+  | { level: 'content'; airport: string }
 
 function DocList({ docs }: { docs: Doc[] }) {
   return (
@@ -106,7 +94,7 @@ export default function TaskBoard({
     setStep(next)
   }
 
-  // 1단계: 국내 / 해외 2분할 목록
+  // 국내 / 해외 2분할 목록
   if (step.level === 'list') {
     return (
       <div className="task-board">
@@ -119,7 +107,7 @@ export default function TaskBoard({
                   key={code}
                   type="button"
                   className="folder-item"
-                  onClick={() => go({ level: 'sub', airport: code, parent: { level: 'list' } })}
+                  onClick={() => go({ level: 'sub', airport: code })}
                 >
                   {code}
                 </button>
@@ -130,12 +118,12 @@ export default function TaskBoard({
           <div className="airport-column">
             <h3 className="airport-column-title">해외</h3>
             <div className="folder-menu">
-              {Object.keys(INTERNATIONAL_REGIONS).map((name) => (
+              {INTERNATIONAL.map((name) => (
                 <button
                   key={name}
                   type="button"
                   className="folder-item"
-                  onClick={() => go({ level: 'region', region: name })}
+                  onClick={() => go({ level: 'sub', airport: name })}
                 >
                   {name}
                 </button>
@@ -147,37 +135,11 @@ export default function TaskBoard({
     )
   }
 
-  // 2단계: 해외 지역 안의 개별 도시/공항 코드
-  if (step.level === 'region') {
-    return (
-      <div className="task-board">
-        <button type="button" className="breadcrumb-back" onClick={() => go({ level: 'list' })}>
-          <IconChevronLeft size={13} /> 뒤로
-        </button>
-        <h2 className="folder-title">{step.region}</h2>
-        <div className="folder-menu">
-          {INTERNATIONAL_REGIONS[step.region].map((code) => (
-            <button
-              key={code}
-              type="button"
-              className="folder-item"
-              onClick={() =>
-                go({ level: 'sub', airport: code, parent: { level: 'region', region: step.region } })
-              }
-            >
-              {code}
-            </button>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
-  // 3단계: 공항별 하위 폴더 (공항 정보 카드 + 보고서)
+  // 공항별 하위 폴더 (보고서)
   if (step.level === 'sub') {
     return (
       <div className="task-board">
-        <button type="button" className="breadcrumb-back" onClick={() => go(step.parent)}>
+        <button type="button" className="breadcrumb-back" onClick={() => go({ level: 'list' })}>
           <IconChevronLeft size={13} /> 뒤로
         </button>
         <h2 className="folder-title">{step.airport}</h2>
@@ -191,7 +153,7 @@ export default function TaskBoard({
           <button
             type="button"
             className="folder-item"
-            onClick={() => go({ level: 'content', airport: step.airport, parent: step })}
+            onClick={() => go({ level: 'content', airport: step.airport })}
           >
             <IconFileText size={16} /> 보고서
           </button>
@@ -200,14 +162,18 @@ export default function TaskBoard({
     )
   }
 
-  // 4단계: 컨텐츠 (작성/목록)
+  // 컨텐츠 (작성/목록)
   const filteredDocs = documents.filter(
     (d) => d.doc_type === '보고서' && d.region === step.airport
   )
 
   return (
     <div className="task-board">
-      <button type="button" className="breadcrumb-back" onClick={() => go(step.parent)}>
+      <button
+        type="button"
+        className="breadcrumb-back"
+        onClick={() => go({ level: 'sub', airport: step.airport })}
+      >
         <IconChevronLeft size={13} /> 뒤로
       </button>
 
@@ -219,3 +185,39 @@ export default function TaskBoard({
     </div>
   )
 }
+FIXAIRPORTEOF
+
+cat > app/tasks/page.tsx << 'FIXAIRPORTEOF'
+import { supabase } from '@/lib/supabaseClient'
+import TaskBoard from './TaskBoard'
+import { IconPlane } from '@/components/icons'
+
+export const dynamic = 'force-dynamic'
+
+export default async function TasksPage() {
+  const [{ data: documents, error: docError }, { data: airportInfo, error: infoError }] =
+    await Promise.all([
+      supabase.from('task_documents').select('*').order('created_at', { ascending: false }),
+      supabase.from('airport_info').select('*'),
+    ])
+
+  if (docError) {
+    console.error(docError)
+  }
+  if (infoError) {
+    console.error(infoError)
+  }
+
+  return (
+    <div className="page">
+      <h1>
+        <IconPlane size={20} className="page-title-icon" /> AIRPORT
+      </h1>
+
+      <TaskBoard documents={documents ?? []} airportInfoList={airportInfo ?? []} />
+    </div>
+  )
+}
+FIXAIRPORTEOF
+
+echo "적용 완료. npm run dev 재시작 후 확인하세요."

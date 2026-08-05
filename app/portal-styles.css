@@ -9,6 +9,9 @@
   font-size: 24px;
   font-weight: 800;
   margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .page-desc {
@@ -324,6 +327,9 @@
   margin: 0;
   font-size: 15px;
   font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .dashboard-more {
@@ -466,6 +472,10 @@
   cursor: pointer;
   padding: 0;
   margin-bottom: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
 }
 
 .breadcrumb-back:hover {

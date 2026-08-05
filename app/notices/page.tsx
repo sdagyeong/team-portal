@@ -1,8 +1,11 @@
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { formatKDate } from "@/lib/formatDate";
 import NoticeForm from "@/components/NoticeForm";
+import AttachmentPreview from "@/components/AttachmentPreview";
+import { IconPin, IconTrash } from "@/components/icons";
 import { addNotice, deleteNotice } from "./actions";
 
 export default async function NoticesPage() {
@@ -19,7 +22,9 @@ export default async function NoticesPage() {
     <>
       <header className="top">
         <div>
-          <h2>📌 업무지시공유</h2>
+          <h2>
+            <IconPin size={18} className="page-title-icon" /> 업무지시공유
+          </h2>
           <p>팀 업무지시 및 공유사항을 확인하세요</p>
         </div>
         <NoticeForm addNotice={addNotice} />
@@ -34,12 +39,23 @@ export default async function NoticesPage() {
                 className="notice-delete-form"
               >
                 <button type="submit" className="deleteButton" aria-label="삭제">
-                  🗑
+                  <IconTrash />
                 </button>
               </form>
 
-              <h3>{notice.title}</h3>
-              <p>{notice.content}</p>
+              <Link href={`/notices/${notice.id}`} className="notice-title-link">
+                <h3>{notice.title}</h3>
+              </Link>
+
+              <div
+                className="notice-content-preview"
+                dangerouslySetInnerHTML={{ __html: notice.content }}
+              />
+
+              {notice.file_url && (
+                <AttachmentPreview fileUrl={notice.file_url} fileName={notice.file_name} />
+              )}
+
               <div className="meta">
                 작성자 : {notice.author}
                 <br />

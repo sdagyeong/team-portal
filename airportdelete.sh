@@ -1,3 +1,214 @@
+#!/bin/bash
+set -e
+
+mkdir -p app app/tasks
+
+cat > app/tasks/airportInfoActions.ts << 'AIRPORTDELEOF'
+'use server'
+
+import { supabase } from '@/lib/supabaseClient'
+import { revalidatePath } from 'next/cache'
+
+export async function saveAirportInfo(formData: FormData) {
+  const airport = formData.get('airport') as string
+  const field = formData.get('field') as string
+  const textValue = formData.get('value_text') as string | null
+  const file = formData.get('value_file') as File | null
+
+  let updateValue: string | null = textValue
+
+  if (field === 'apron_diagram_url' && file && file.size > 0) {
+    const filePath = `airport-info/${airport}_${Date.now()}_${file.name}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('task-documents')
+      .upload(filePath, file)
+
+    if (uploadError) {
+      console.error(uploadError)
+      throw new Error('이미지 업로드에 실패했습니다.')
+    }
+
+    const { data } = supabase.storage.from('task-documents').getPublicUrl(filePath)
+    updateValue = data.publicUrl
+  }
+
+  const { error } = await supabase
+    .from('airport_info')
+    .upsert(
+      { airport, [field]: updateValue, updated_at: new Date().toISOString() },
+      { onConflict: 'airport' }
+    )
+
+  if (error) {
+    console.error(error)
+    throw new Error('저장에 실패했습니다.')
+  }
+
+  revalidatePath('/tasks')
+}
+
+export async function clearAirportInfoField(airport: string, field: string) {
+  const { error } = await supabase
+    .from('airport_info')
+    .upsert(
+      { airport, [field]: null, updated_at: new Date().toISOString() },
+      { onConflict: 'airport' }
+    )
+
+  if (error) {
+    console.error(error)
+    throw new Error('삭제에 실패했습니다.')
+  }
+
+  revalidatePath('/tasks')
+}
+AIRPORTDELEOF
+
+cat > app/tasks/AirportInfoCard.tsx << 'AIRPORTDELEOF'
+'use client'
+
+import { useState } from 'react'
+import { saveAirportInfo, clearAirportInfoField } from './airportInfoActions'
+
+type AirportInfo = {
+  airport: string
+  apron_diagram_url: string | null
+  parking_stand: string | null
+  active_runway: string | null
+  deicing_pad: string | null
+}
+
+const FIELDS: {
+  key: keyof Omit<AirportInfo, 'airport'>
+  label: string
+  type: 'image' | 'text'
+}[] = [
+  { key: 'apron_diagram_url', label: '주기장요도', type: 'image' },
+  { key: 'parking_stand', label: '주기장', type: 'text' },
+  { key: 'active_runway', label: '사용 활주로', type: 'text' },
+  { key: 'deicing_pad', label: '제방빙장', type: 'text' },
+]
+
+export default function AirportInfoCard({
+  airport,
+  info,
+}: {
+  airport: string
+  info: AirportInfo | null
+}) {
+  const [editing, setEditing] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  async function handleSave(field: string, formData: FormData) {
+    formData.set('airport', airport)
+    formData.set('field', field)
+    setSubmitting(true)
+    try {
+      await saveAirportInfo(formData)
+      setEditing(null)
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '오류가 발생했습니다.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleClear(field: string) {
+    if (!confirm('등록된 내용을 삭제할까요?')) return
+    setSubmitting(true)
+    try {
+      await clearAirportInfoField(airport, field)
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '오류가 발생했습니다.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="airport-info-card">
+      {FIELDS.map((f) => {
+        const value = info?.[f.key] ?? null
+        const isEditing = editing === f.key
+
+        return (
+          <div key={f.key} className="airport-info-row">
+            <span className="airport-info-label">{f.label}</span>
+
+            {!isEditing && (
+              <>
+                <div className="airport-info-value">
+                  {f.type === 'image' ? (
+                    value ? (
+                      <img src={value} alt={f.label} className="airport-info-image" />
+                    ) : (
+                      <span className="empty">등록된 이미지가 없습니다.</span>
+                    )
+                  ) : value ? (
+                    value
+                  ) : (
+                    <span className="empty">등록된 내용이 없습니다.</span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className="airport-info-edit-btn"
+                  onClick={() => setEditing(f.key)}
+                >
+                  수정
+                </button>
+                {value && (
+                  <button
+                    type="button"
+                    className="airport-info-clear-btn"
+                    onClick={() => handleClear(f.key)}
+                    disabled={submitting}
+                  >
+                    삭제
+                  </button>
+                )}
+              </>
+            )}
+
+            {isEditing && (
+              <form
+                action={(fd) => handleSave(f.key, fd)}
+                className="airport-info-edit-form"
+              >
+                {f.type === 'image' ? (
+                  <input type="file" name="value_file" accept="image/*" />
+                ) : (
+                  <input
+                    type="text"
+                    name="value_text"
+                    defaultValue={value ?? ''}
+                    placeholder={f.label}
+                  />
+                )}
+                <div className="airport-info-edit-actions">
+                  <button type="submit" className="btn-primary" disabled={submitting}>
+                    {submitting ? '저장 중...' : '저장'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setEditing(null)}
+                  >
+                    취소
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+AIRPORTDELEOF
+
+cat > app/globals.css << 'AIRPORTDELEOF'
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css");
 
 :root {
@@ -763,55 +974,6 @@ form > button[type="submit"] {
   padding-bottom: 8px;
   border-bottom: 2px solid var(--color-orange);
 }
+AIRPORTDELEOF
 
-/* 메인 헤더 - 전체 검색 */
-.header-search {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  background: #fff;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  overflow: hidden;
-  height: 38px;
-}
-
-.header-search input {
-  border: none;
-  padding: 0 12px;
-  font-size: 13px;
-  width: 220px;
-  height: 100%;
-  margin: 0;
-}
-
-.header-search input:focus {
-  outline: none;
-  box-shadow: none;
-}
-
-.header-search button {
-  border: none;
-  background: var(--color-navy);
-  color: #fff;
-  height: 100%;
-  padding: 0 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.header-search button:hover {
-  background: var(--color-navy-light);
-}
-
-.search-section-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-navy);
-  margin-bottom: 10px;
-}
+echo "적용 완료. npm run dev 재시작 후 확인하세요."

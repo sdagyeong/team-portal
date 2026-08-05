@@ -3,23 +3,14 @@
 import DocForm from "@/components/DocForm";
 import { addDocument } from "./documentActions";
 
-export default function DocumentForm({
-  docType,
-  region,
-  onDone,
-}: {
-  docType: string;
-  region: string;
-  onDone?: () => void;
-}) {
+export default function DocumentForm() {
   return (
     <DocForm
-      heading={`✏️ ${docType} 작성`}
+      heading="✏️ 계정/연락망 작성"
       triggerLabel="+ 작성"
       contentFieldName="description"
-      extraFields={{ doc_type: docType, region }}
+      extraFields={{ doc_type: "계정연락망", region: "전체" }}
       addAction={addDocument}
-      onSaved={onDone}
       fileAccept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
     />
   );

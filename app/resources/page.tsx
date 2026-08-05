@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabaseClient'
 import ResourceBoard from './ResourceBoard'
+import { IconFolder } from '@/components/icons'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,7 +16,7 @@ export default async function ResourcesPage() {
 
   return (
     <div className="page">
-      <h1>📁 자료실</h1>
+      <h1><IconFolder size={20} className="page-title-icon" /> 자료실</h1>
 
       <ResourceBoard documents={documents ?? []} />
     </div>
