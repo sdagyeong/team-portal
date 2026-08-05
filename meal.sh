@@ -1,3 +1,253 @@
+#!/bin/bash
+set -e
+
+mkdir -p app
+
+cat > app/mealActions.ts << 'MEALEOF'
+'use server'
+
+import { supabase } from '@/lib/supabaseClient'
+import { revalidatePath } from 'next/cache'
+
+export async function saveMealImage(formData: FormData) {
+  const side = formData.get('side') as string
+  const file = formData.get('file') as File | null
+
+  if (!file || file.size === 0) {
+    throw new Error('이미지를 선택해주세요.')
+  }
+
+  const filePath = `meal/${side}_${Date.now()}_${file.name}`
+
+  const { error: uploadError } = await supabase.storage
+    .from('task-documents')
+    .upload(filePath, file)
+
+  if (uploadError) {
+    console.error(uploadError)
+    throw new Error('이미지 업로드에 실패했습니다.')
+  }
+
+  const { data } = supabase.storage.from('task-documents').getPublicUrl(filePath)
+  const column = side === 'left' ? 'left_image_url' : 'right_image_url'
+
+  const { error } = await supabase
+    .from('meal_board')
+    .upsert(
+      { id: 1, [column]: data.publicUrl, updated_at: new Date().toISOString() },
+      { onConflict: 'id' }
+    )
+
+  if (error) {
+    console.error(error)
+    throw new Error('저장에 실패했습니다.')
+  }
+
+  revalidatePath('/')
+}
+
+export async function clearMealImage(side: 'left' | 'right') {
+  const column = side === 'left' ? 'left_image_url' : 'right_image_url'
+
+  const { error } = await supabase
+    .from('meal_board')
+    .upsert(
+      { id: 1, [column]: null, updated_at: new Date().toISOString() },
+      { onConflict: 'id' }
+    )
+
+  if (error) {
+    console.error(error)
+    throw new Error('삭제에 실패했습니다.')
+  }
+
+  revalidatePath('/')
+}
+MEALEOF
+
+cat > app/MealBoard.tsx << 'MEALEOF'
+'use client'
+
+import { useState } from 'react'
+import { saveMealImage, clearMealImage } from './mealActions'
+import { IconImage } from '@/components/icons'
+
+type MealInfo = {
+  left_image_url: string | null
+  right_image_url: string | null
+} | null
+
+export default function MealBoard({ info }: { info: MealInfo }) {
+  const [editing, setEditing] = useState<'left' | 'right' | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  async function handleUpload(side: 'left' | 'right', formData: FormData) {
+    formData.set('side', side)
+    setSubmitting(true)
+    try {
+      await saveMealImage(formData)
+      setEditing(null)
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '오류가 발생했습니다.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleClear(side: 'left' | 'right') {
+    if (!confirm('이미지를 삭제할까요?')) return
+    setSubmitting(true)
+    try {
+      await clearMealImage(side)
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '오류가 발생했습니다.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const slots: { key: 'left' | 'right'; url: string | null }[] = [
+    { key: 'left', url: info?.left_image_url ?? null },
+    { key: 'right', url: info?.right_image_url ?? null },
+  ]
+
+  return (
+    <section className="dashboard-card meal-card">
+      <div className="dashboard-card-header">
+        <h3>
+          <IconImage size={15} className="page-title-icon" /> 식단
+        </h3>
+      </div>
+
+      <div className="meal-images">
+        {slots.map((slot) => (
+          <div key={slot.key} className="meal-slot">
+            {editing !== slot.key && slot.url && (
+              <img src={slot.url} alt="식단 이미지" className="meal-image" />
+            )}
+            {editing !== slot.key && !slot.url && (
+              <div className="meal-empty">등록된 이미지가 없습니다.</div>
+            )}
+
+            {editing !== slot.key && (
+              <div className="meal-slot-actions">
+                <button
+                  type="button"
+                  className="airport-info-edit-btn"
+                  onClick={() => setEditing(slot.key)}
+                >
+                  수정
+                </button>
+                {slot.url && (
+                  <button
+                    type="button"
+                    className="airport-info-clear-btn"
+                    onClick={() => handleClear(slot.key)}
+                    disabled={submitting}
+                  >
+                    삭제
+                  </button>
+                )}
+              </div>
+            )}
+
+            {editing === slot.key && (
+              <form action={(fd) => handleUpload(slot.key, fd)} className="meal-edit-form">
+                <input type="file" name="file" accept="image/*" />
+                <div className="airport-info-edit-actions">
+                  <button type="submit" className="btn-primary" disabled={submitting}>
+                    {submitting ? '저장 중...' : '저장'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setEditing(null)}
+                  >
+                    취소
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+MEALEOF
+
+cat > app/page.tsx << 'MEALEOF'
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+import Link from "next/link";
+import { supabase } from "@/lib/supabase";
+import { supabase as supabaseData } from "@/lib/supabaseClient";
+import { IconPlane, IconPin, IconFilePreview } from "@/components/icons";
+import MealBoard from "./MealBoard";
+
+export default async function DashboardPage() {
+  const [{ data: notices }, { data: mealInfo }] = await Promise.all([
+    supabase
+      .from("notices")
+      .select("*")
+      .order("id", { ascending: false })
+      .limit(3),
+    supabaseData.from("meal_board").select("*").eq("id", 1).maybeSingle(),
+  ]);
+
+  return (
+    <>
+      <header className="top">
+        <div>
+          <h2>
+            <IconPlane size={20} className="page-title-icon" /> Ramp Control Team 포털
+          </h2>
+          <p>오늘의 업무지시와 자료 현황을 한눈에 확인하세요</p>
+        </div>
+
+        <form action="/search" method="GET" className="header-search">
+          <input type="text" name="q" placeholder="전체 검색..." />
+          <button type="submit" aria-label="검색">
+            <IconFilePreview size={16} />
+          </button>
+        </form>
+      </header>
+
+      <div className="dashboard-grid">
+        {/* 최근 업무지시공유 */}
+        <section className="dashboard-card">
+          <div className="dashboard-card-header">
+            <h3>
+              <IconPin size={15} className="page-title-icon" /> 최근 업무지시공유
+            </h3>
+            <Link href="/notices" className="dashboard-more">
+              전체보기
+            </Link>
+          </div>
+          {(!notices || notices.length === 0) && (
+            <p className="empty">등록된 글이 없습니다.</p>
+          )}
+          <ul className="dashboard-list">
+            {notices?.map((notice) => (
+              <li key={notice.id}>
+                <Link href={`/notices/${notice.id}`} className="dashboard-list-title">
+                  {notice.title}
+                </Link>
+                <span className="dashboard-list-meta">{notice.author}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
+
+      <MealBoard info={mealInfo ?? null} />
+    </>
+  );
+}
+MEALEOF
+
+cat > app/globals.css << 'MEALEOF'
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css");
 
 :root {
@@ -714,3 +964,6 @@ form > button[type="submit"] {
 .meal-edit-form input[type="file"] {
   font-size: 12px;
 }
+MEALEOF
+
+echo "적용 완료. npm run dev 재시작 후 확인하세요."

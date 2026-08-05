@@ -4,21 +4,18 @@ export const revalidate = 0;
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { supabase as supabaseData } from "@/lib/supabaseClient";
-import { IconPlane, IconPin, IconFolder, IconFilePreview } from "@/components/icons";
+import { IconPlane, IconPin, IconFilePreview } from "@/components/icons";
+import MealBoard from "./MealBoard";
 
 export default async function DashboardPage() {
-  const [{ data: notices }, { data: documents }] = await Promise.all([
+  const [{ data: notices }, { data: mealInfo }] = await Promise.all([
     supabase
       .from("notices")
       .select("*")
       .order("id", { ascending: false })
       .limit(3),
-    supabaseData.from("task_documents").select("doc_type"),
+    supabaseData.from("meal_board").select("*").eq("id", 1).maybeSingle(),
   ]);
-
-  const reportCount = documents?.filter((d) => d.doc_type === "보고서").length ?? 0;
-  const contactCount = documents?.filter((d) => d.doc_type === "계정연락망").length ?? 0;
-  const manualCount = documents?.filter((d) => d.doc_type === "매뉴얼").length ?? 0;
 
   return (
     <>
@@ -63,33 +60,9 @@ export default async function DashboardPage() {
             ))}
           </ul>
         </section>
-
-        {/* 자료 현황 */}
-        <section className="dashboard-card">
-          <div className="dashboard-card-header">
-            <h3>
-              <IconFolder size={15} className="page-title-icon" /> 자료 현황
-            </h3>
-            <Link href="/resources" className="dashboard-more">
-              전체보기
-            </Link>
-          </div>
-          <div className="dashboard-stats">
-            <div className="dashboard-stat">
-              <span className="dashboard-stat-num">{reportCount}</span>
-              <span className="dashboard-stat-label">보고서</span>
-            </div>
-            <div className="dashboard-stat">
-              <span className="dashboard-stat-num">{contactCount}</span>
-              <span className="dashboard-stat-label">계정/연락망</span>
-            </div>
-            <div className="dashboard-stat">
-              <span className="dashboard-stat-num">{manualCount}</span>
-              <span className="dashboard-stat-label">매뉴얼</span>
-            </div>
-          </div>
-        </section>
       </div>
+
+      <MealBoard info={mealInfo ?? null} />
     </>
   );
 }
