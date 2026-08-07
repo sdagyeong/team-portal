@@ -1,7 +1,334 @@
 #!/bin/bash
 set -e
 
-cat > app/globals.css << 'FIXSEARCHEOF'
+mkdir -p app app/notices components
+
+cat > app/searchActions.ts << 'SEARCHDROPEOF'
+'use server'
+
+import { supabase } from '@/lib/supabase'
+import { supabase as supabaseData } from '@/lib/supabaseClient'
+
+export type SearchResult = {
+  id: number
+  title: string
+  author: string
+  type: string
+  href: string
+}
+
+const DOC_BASE: Record<string, string> = {
+  보고서: '/tasks/doc',
+  매뉴얼: '/resources/doc',
+  계정연락망: '/contacts/doc',
+}
+
+const DOC_LABEL: Record<string, string> = {
+  보고서: 'AIRPORT · 보고서',
+  매뉴얼: '자료실 · 매뉴얼',
+  계정연락망: '계정/연락망',
+}
+
+export async function searchAll(rawQuery: string): Promise<SearchResult[]> {
+  const q = rawQuery.trim()
+  if (!q) return []
+
+  const [noticeRes, docRes] = await Promise.all([
+    supabase
+      .from('notices')
+      .select('id, title, author')
+      .or(`title.ilike.%${q}%,content.ilike.%${q}%,author.ilike.%${q}%`)
+      .order('id', { ascending: false })
+      .limit(6),
+    supabaseData
+      .from('task_documents')
+      .select('id, title, author, doc_type')
+      .or(`title.ilike.%${q}%,description.ilike.%${q}%,author.ilike.%${q}%`)
+      .order('created_at', { ascending: false })
+      .limit(6),
+  ])
+
+  const notices: SearchResult[] = (noticeRes.data ?? []).map((n) => ({
+    id: n.id,
+    title: n.title,
+    author: n.author,
+    type: '업무지시공유',
+    href: `/notices/${n.id}`,
+  }))
+
+  const docs: SearchResult[] = (docRes.data ?? []).map((d) => ({
+    id: d.id,
+    title: d.title,
+    author: d.author,
+    type: DOC_LABEL[d.doc_type] ?? d.doc_type,
+    href: `${DOC_BASE[d.doc_type] ?? '/resources/doc'}/${d.id}`,
+  }))
+
+  return [...notices, ...docs]
+}
+SEARCHDROPEOF
+
+cat > components/SearchBox.tsx << 'SEARCHDROPEOF'
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { searchAll, type SearchResult } from "@/app/searchActions";
+import { IconFilePreview } from "./icons";
+
+export default function SearchBox() {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const boxRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  function handleChange(value: string) {
+    setQuery(value);
+    if (timerRef.current) clearTimeout(timerRef.current);
+
+    if (!value.trim()) {
+      setResults([]);
+      setOpen(false);
+      return;
+    }
+
+    timerRef.current = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const res = await searchAll(value);
+        setResults(res);
+        setOpen(true);
+      } finally {
+        setLoading(false);
+      }
+    }, 300);
+  }
+
+  function goFullSearch() {
+    if (!query.trim()) return;
+    setOpen(false);
+    router.push(`/search?q=${encodeURIComponent(query)}`);
+  }
+
+  function goResult(href: string) {
+    setOpen(false);
+    setQuery("");
+    router.push(href);
+  }
+
+  return (
+    <div className="header-search-wrap" ref={boxRef}>
+      <form
+        className="header-search"
+        onSubmit={(e) => {
+          e.preventDefault();
+          goFullSearch();
+        }}
+      >
+        <input
+          type="text"
+          placeholder="전체 검색..."
+          value={query}
+          onChange={(e) => handleChange(e.target.value)}
+          onFocus={() => query.trim() && setOpen(true)}
+        />
+        <button type="submit" aria-label="검색">
+          <IconFilePreview size={16} />
+        </button>
+      </form>
+
+      {open && (
+        <div className="search-dropdown">
+          {loading && <p className="search-dropdown-empty">검색 중...</p>}
+
+          {!loading && results.length === 0 && (
+            <p className="search-dropdown-empty">일치하는 결과가 없습니다.</p>
+          )}
+
+          {!loading &&
+            results.map((r) => (
+              <button
+                key={`${r.type}-${r.id}`}
+                type="button"
+                className="search-dropdown-item"
+                onClick={() => goResult(r.href)}
+              >
+                <span className="search-dropdown-type">{r.type}</span>
+                <span className="search-dropdown-title">{r.title}</span>
+                <span className="search-dropdown-author">{r.author}</span>
+              </button>
+            ))}
+
+          {!loading && (
+            <button type="button" className="search-dropdown-more" onClick={goFullSearch}>
+              &quot;{query}&quot; 전체 검색결과 보기
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+SEARCHDROPEOF
+
+cat > app/page.tsx << 'SEARCHDROPEOF'
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+import Link from "next/link";
+import { supabase } from "@/lib/supabase";
+import { supabase as supabaseData } from "@/lib/supabaseClient";
+import { IconPlane, IconPin } from "@/components/icons";
+import MealBoard from "./MealBoard";
+import SearchBox from "@/components/SearchBox";
+
+export default async function DashboardPage() {
+  const [{ data: notices }, { data: mealInfo }] = await Promise.all([
+    supabase
+      .from("notices")
+      .select("*")
+      .order("id", { ascending: false })
+      .limit(3),
+    supabaseData.from("meal_board").select("*").eq("id", 1).maybeSingle(),
+  ]);
+
+  return (
+    <>
+      <header className="top">
+        <div>
+          <h2>
+            <IconPlane size={20} className="page-title-icon" /> Ramp Control Team 포털
+          </h2>
+          <p>오늘의 업무지시와 자료 현황을 한눈에 확인하세요</p>
+        </div>
+
+        <SearchBox />
+      </header>
+
+      <div className="dashboard-grid">
+        {/* 최근 업무지시공유 */}
+        <section className="dashboard-card">
+          <div className="dashboard-card-header">
+            <h3>
+              <IconPin size={15} className="page-title-icon" /> 최근 업무지시공유
+            </h3>
+            <Link href="/notices" className="dashboard-more">
+              전체보기
+            </Link>
+          </div>
+          {(!notices || notices.length === 0) && (
+            <p className="empty">등록된 글이 없습니다.</p>
+          )}
+          <ul className="dashboard-list">
+            {notices?.map((notice) => (
+              <li key={notice.id}>
+                <Link href={`/notices/${notice.id}`} className="dashboard-list-title">
+                  {notice.title}
+                </Link>
+                <span className="dashboard-list-meta">{notice.author}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
+
+      <MealBoard info={mealInfo ?? null} />
+    </>
+  );
+}
+SEARCHDROPEOF
+
+cat > app/notices/page.tsx << 'SEARCHDROPEOF'
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+import Link from "next/link";
+import { supabase } from "@/lib/supabase";
+import { formatKDate } from "@/lib/formatDate";
+import NoticeForm from "@/components/NoticeForm";
+import AttachmentPreview from "@/components/AttachmentPreview";
+import SearchBox from "@/components/SearchBox";
+import { IconPin, IconTrash } from "@/components/icons";
+import { addNotice, deleteNotice } from "./actions";
+
+export default async function NoticesPage() {
+  const { data: notices, error } = await supabase
+    .from("notices")
+    .select("*")
+    .order("id", { ascending: false });
+
+  if (error) {
+    console.error("불러오기 오류:", error);
+  }
+
+  return (
+    <>
+      <header className="top">
+        <div>
+          <h2>
+            <IconPin size={18} className="page-title-icon" /> 업무지시공유
+          </h2>
+          <p>팀 업무지시 및 공유사항을 확인하세요</p>
+        </div>
+        <div className="top-actions">
+          <SearchBox />
+          <NoticeForm addNotice={addNotice} />
+        </div>
+      </header>
+
+      <section>
+        <div className="noticeList">
+          {notices?.map((notice) => (
+            <article key={notice.id} className="card notice-card">
+              <form
+                action={deleteNotice.bind(null, notice.id)}
+                className="notice-delete-form"
+              >
+                <button type="submit" className="deleteButton" aria-label="삭제">
+                  <IconTrash />
+                </button>
+              </form>
+
+              <Link href={`/notices/${notice.id}`} className="notice-title-link">
+                <h3>{notice.title}</h3>
+              </Link>
+
+              <div
+                className="notice-content-preview"
+                dangerouslySetInnerHTML={{ __html: notice.content }}
+              />
+
+              {notice.file_url && (
+                <AttachmentPreview fileUrl={notice.file_url} fileName={notice.file_name} />
+              )}
+
+              <div className="meta">
+                작성자 : {notice.author}
+                <br />
+                작성일 : {formatKDate(notice.created_at)}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    </>
+  );
+}
+SEARCHDROPEOF
+
+cat > app/globals.css << 'SEARCHDROPEOF'
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css");
 
 :root {
@@ -765,6 +1092,95 @@ form > button[type="submit"] {
 .header-search button[type="submit"]:hover {
   background: var(--color-navy-light);
 }
-FIXSEARCHEOF
+
+/* 헤더 오른쪽 영역(검색+작성버튼) 정렬 */
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+/* 검색 드롭다운 */
+.header-search-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.search-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 340px;
+  max-height: 360px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+  z-index: 50;
+  padding: 6px;
+}
+
+.search-dropdown-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  gap: 2px;
+}
+
+.search-dropdown-item:hover {
+  background: var(--color-bg);
+}
+
+.search-dropdown-type {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-orange-dark);
+}
+
+.search-dropdown-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.search-dropdown-author {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.search-dropdown-empty {
+  padding: 14px 10px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.search-dropdown-more {
+  width: 100%;
+  text-align: center;
+  background: var(--color-bg);
+  border: none;
+  border-radius: 8px;
+  padding: 9px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-navy);
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.search-dropdown-more:hover {
+  color: var(--color-orange-dark);
+}
+SEARCHDROPEOF
 
 echo "적용 완료. npm run dev 재시작 후 확인하세요."

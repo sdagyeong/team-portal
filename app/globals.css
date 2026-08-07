@@ -761,3 +761,92 @@ form > button[type="submit"] {
 .header-search button[type="submit"]:hover {
   background: var(--color-navy-light);
 }
+
+/* 헤더 오른쪽 영역(검색+작성버튼) 정렬 */
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+/* 검색 드롭다운 */
+.header-search-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.search-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 340px;
+  max-height: 360px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+  z-index: 50;
+  padding: 6px;
+}
+
+.search-dropdown-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  gap: 2px;
+}
+
+.search-dropdown-item:hover {
+  background: var(--color-bg);
+}
+
+.search-dropdown-type {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-orange-dark);
+}
+
+.search-dropdown-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.search-dropdown-author {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.search-dropdown-empty {
+  padding: 14px 10px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.search-dropdown-more {
+  width: 100%;
+  text-align: center;
+  background: var(--color-bg);
+  border: none;
+  border-radius: 8px;
+  padding: 9px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-navy);
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.search-dropdown-more:hover {
+  color: var(--color-orange-dark);
+}

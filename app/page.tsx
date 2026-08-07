@@ -4,8 +4,9 @@ export const revalidate = 0;
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { supabase as supabaseData } from "@/lib/supabaseClient";
-import { IconPlane, IconPin, IconFilePreview } from "@/components/icons";
+import { IconPlane, IconPin } from "@/components/icons";
 import MealBoard from "./MealBoard";
+import SearchBox from "@/components/SearchBox";
 
 export default async function DashboardPage() {
   const [{ data: notices }, { data: mealInfo }] = await Promise.all([
@@ -27,12 +28,7 @@ export default async function DashboardPage() {
           <p>오늘의 업무지시와 자료 현황을 한눈에 확인하세요</p>
         </div>
 
-        <form action="/search" method="GET" className="header-search">
-          <input type="text" name="q" placeholder="전체 검색..." />
-          <button type="submit" aria-label="검색">
-            <IconFilePreview size={16} />
-          </button>
-        </form>
+        <SearchBox />
       </header>
 
       <div className="dashboard-grid">

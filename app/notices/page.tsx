@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { formatKDate } from "@/lib/formatDate";
 import NoticeForm from "@/components/NoticeForm";
 import AttachmentPreview from "@/components/AttachmentPreview";
+import SearchBox from "@/components/SearchBox";
 import { IconPin, IconTrash } from "@/components/icons";
 import { addNotice, deleteNotice } from "./actions";
 
@@ -27,7 +28,10 @@ export default async function NoticesPage() {
           </h2>
           <p>팀 업무지시 및 공유사항을 확인하세요</p>
         </div>
-        <NoticeForm addNotice={addNotice} />
+        <div className="top-actions">
+          <SearchBox />
+          <NoticeForm addNotice={addNotice} />
+        </div>
       </header>
 
       <section>
