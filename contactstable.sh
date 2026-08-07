@@ -1,3 +1,332 @@
+#!/bin/bash
+set -e
+
+mkdir -p app app/contacts
+
+cat > app/contacts/contactActions.ts << 'CONTACTSEOF'
+'use server'
+
+import { supabase } from '@/lib/supabaseClient'
+import { revalidatePath } from 'next/cache'
+
+// ---------- 시스템 계정 ----------
+export async function addSystemAccountRow() {
+  const { error } = await supabase.from('system_accounts').insert({})
+  if (error) {
+    console.error(error)
+    throw new Error('추가에 실패했습니다.')
+  }
+  revalidatePath('/contacts')
+}
+
+export async function updateSystemAccountCell(id: number, field: string, value: string) {
+  const { error } = await supabase
+    .from('system_accounts')
+    .update({ [field]: value, updated_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) {
+    console.error(error)
+    throw new Error('저장에 실패했습니다.')
+  }
+  revalidatePath('/contacts')
+}
+
+export async function deleteSystemAccountRow(id: number) {
+  const { error } = await supabase.from('system_accounts').delete().eq('id', id)
+  if (error) {
+    console.error(error)
+    throw new Error('삭제에 실패했습니다.')
+  }
+  revalidatePath('/contacts')
+}
+
+// ---------- 유선 연락망 ----------
+export async function addPhoneContactRow() {
+  const { error } = await supabase.from('phone_contacts').insert({})
+  if (error) {
+    console.error(error)
+    throw new Error('추가에 실패했습니다.')
+  }
+  revalidatePath('/contacts')
+}
+
+export async function updatePhoneContactCell(id: number, field: string, value: string) {
+  const { error } = await supabase
+    .from('phone_contacts')
+    .update({ [field]: value, updated_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) {
+    console.error(error)
+    throw new Error('저장에 실패했습니다.')
+  }
+  revalidatePath('/contacts')
+}
+
+export async function deletePhoneContactRow(id: number) {
+  const { error } = await supabase.from('phone_contacts').delete().eq('id', id)
+  if (error) {
+    console.error(error)
+    throw new Error('삭제에 실패했습니다.')
+  }
+  revalidatePath('/contacts')
+}
+CONTACTSEOF
+
+cat > app/contacts/EditableTable.tsx << 'CONTACTSEOF'
+'use client'
+
+import { useState } from 'react'
+import { IconTrash, IconPlus } from '@/components/icons'
+
+export type Column = { key: string; label: string; width?: string }
+
+export default function EditableTable({
+  rows,
+  columns,
+  onUpdateCell,
+  onDeleteRow,
+  onAddRow,
+}: {
+  rows: Record<string, string | number | null>[]
+  columns: Column[]
+  onUpdateCell: (id: number, field: string, value: string) => Promise<void>
+  onDeleteRow: (id: number) => Promise<void>
+  onAddRow: () => Promise<void>
+}) {
+  const [editing, setEditing] = useState<{ id: number; field: string } | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  async function save(id: number, field: string, value: string) {
+    setBusy(true)
+    try {
+      await onUpdateCell(id, field, value)
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '오류가 발생했습니다.')
+    } finally {
+      setBusy(false)
+      setEditing(null)
+    }
+  }
+
+  async function handleDelete(id: number) {
+    if (!confirm('이 행을 삭제할까요?')) return
+    setBusy(true)
+    try {
+      await onDeleteRow(id)
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '오류가 발생했습니다.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleAdd() {
+    setBusy(true)
+    try {
+      await onAddRow()
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '오류가 발생했습니다.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="edit-table-wrap">
+      <table className="edit-table">
+        <thead>
+          <tr>
+            {columns.map((c) => (
+              <th key={c.key} style={{ width: c.width }}>
+                {c.label}
+              </th>
+            ))}
+            <th style={{ width: 40 }} />
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 && (
+            <tr>
+              <td colSpan={columns.length + 1} className="edit-table-empty-row">
+                등록된 항목이 없습니다.
+              </td>
+            </tr>
+          )}
+          {rows.map((row) => {
+            const id = row.id as number
+            return (
+              <tr key={id}>
+                {columns.map((c) => {
+                  const isEditing = editing?.id === id && editing.field === c.key
+                  const value = row[c.key]
+                  return (
+                    <td
+                      key={c.key}
+                      onClick={() => !isEditing && setEditing({ id, field: c.key })}
+                    >
+                      {isEditing ? (
+                        <textarea
+                          autoFocus
+                          defaultValue={(value as string) ?? ''}
+                          disabled={busy}
+                          onBlur={(e) => save(id, c.key, e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault()
+                              ;(e.target as HTMLTextAreaElement).blur()
+                            }
+                            if (e.key === 'Escape') setEditing(null)
+                          }}
+                        />
+                      ) : value ? (
+                        <span className="edit-table-cell-value">{value}</span>
+                      ) : (
+                        <span className="edit-table-cell-empty">-</span>
+                      )}
+                    </td>
+                  )
+                })}
+                <td>
+                  <button
+                    type="button"
+                    className="doc-row-delete"
+                    onClick={() => handleDelete(id)}
+                    aria-label="삭제"
+                  >
+                    <IconTrash />
+                  </button>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+
+      <button type="button" className="edit-table-add" onClick={handleAdd} disabled={busy}>
+        <IconPlus size={13} /> 행 추가
+      </button>
+    </div>
+  )
+}
+CONTACTSEOF
+
+cat > app/contacts/ContactsBoard.tsx << 'CONTACTSEOF'
+'use client'
+
+import { useState } from 'react'
+import EditableTable, { type Column } from './EditableTable'
+import {
+  addSystemAccountRow,
+  updateSystemAccountCell,
+  deleteSystemAccountRow,
+  addPhoneContactRow,
+  updatePhoneContactCell,
+  deletePhoneContactRow,
+} from './contactActions'
+
+const ACCOUNT_COLUMNS: Column[] = [
+  { key: 'group_name', label: '그룹', width: '110px' },
+  { key: 'system_name', label: '시스템명', width: '160px' },
+  { key: 'url', label: 'URL', width: '180px' },
+  { key: 'detail', label: '내용', width: '120px' },
+  { key: 'account_id', label: 'ID', width: '110px' },
+  { key: 'password', label: 'PW', width: '110px' },
+  { key: 'note', label: '비고' },
+]
+
+const CONTACT_COLUMNS: Column[] = [
+  { key: 'name', label: '이름', width: '100px' },
+  { key: 'position', label: '소속/직책', width: '160px' },
+  { key: 'office_phone', label: '사무실 전화', width: '140px' },
+  { key: 'mobile', label: '휴대폰', width: '140px' },
+  { key: 'note', label: '비고' },
+]
+
+type Row = Record<string, string | number | null>
+
+export default function ContactsBoard({
+  systemAccounts,
+  phoneContacts,
+}: {
+  systemAccounts: Row[]
+  phoneContacts: Row[]
+}) {
+  const [tab, setTab] = useState<'system' | 'phone'>('system')
+
+  return (
+    <div className="task-board">
+      <div className="task-folder-tabs">
+        <button
+          type="button"
+          className={`task-folder-tab ${tab === 'system' ? 'active' : ''}`}
+          onClick={() => setTab('system')}
+        >
+          시스템 계정
+        </button>
+        <button
+          type="button"
+          className={`task-folder-tab ${tab === 'phone' ? 'active' : ''}`}
+          onClick={() => setTab('phone')}
+        >
+          유선 연락망
+        </button>
+      </div>
+
+      {tab === 'system' ? (
+        <EditableTable
+          rows={systemAccounts}
+          columns={ACCOUNT_COLUMNS}
+          onUpdateCell={updateSystemAccountCell}
+          onDeleteRow={deleteSystemAccountRow}
+          onAddRow={addSystemAccountRow}
+        />
+      ) : (
+        <EditableTable
+          rows={phoneContacts}
+          columns={CONTACT_COLUMNS}
+          onUpdateCell={updatePhoneContactCell}
+          onDeleteRow={deletePhoneContactRow}
+          onAddRow={addPhoneContactRow}
+        />
+      )}
+    </div>
+  )
+}
+CONTACTSEOF
+
+cat > app/contacts/page.tsx << 'CONTACTSEOF'
+import { supabase } from '@/lib/supabaseClient'
+import ContactsBoard from './ContactsBoard'
+import { IconContact } from '@/components/icons'
+
+export const dynamic = 'force-dynamic'
+
+export default async function ContactsPage() {
+  const [{ data: systemAccounts, error: accError }, { data: phoneContacts, error: contactError }] =
+    await Promise.all([
+      supabase.from('system_accounts').select('*').order('id', { ascending: true }),
+      supabase.from('phone_contacts').select('*').order('id', { ascending: true }),
+    ])
+
+  if (accError) console.error(accError)
+  if (contactError) console.error(contactError)
+
+  return (
+    <div className="page">
+      <h1>
+        <IconContact size={20} className="page-title-icon" /> 계정/연락망
+      </h1>
+
+      <ContactsBoard
+        systemAccounts={systemAccounts ?? []}
+        phoneContacts={phoneContacts ?? []}
+      />
+    </div>
+  )
+}
+CONTACTSEOF
+
+cat > app/globals.css << 'CONTACTSEOF'
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css");
 
 :root {
@@ -965,170 +1294,10 @@ form > button[type="submit"] {
 .edit-table tr:last-child td {
   border-bottom: none;
 }
+CONTACTSEOF
 
-/* 유선 연락망 - 구분별 박스 그리드 */
-.phone-panels {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  align-items: flex-start;
-}
+# 예전 글쓰기 방식 파일 정리(더 이상 사용 안 함)
+rm -f app/contacts/DocumentForm.tsx app/contacts/documentActions.ts
+rm -rf 'app/contacts/doc'
 
-.phone-panel {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
-  padding: 14px;
-  width: 320px;
-  flex-shrink: 0;
-}
-
-.phone-panel-title {
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--color-navy);
-  padding-bottom: 8px;
-  margin-bottom: 8px;
-  border-bottom: 2px solid var(--color-orange);
-}
-
-.phone-panel-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12.5px;
-}
-
-.phone-panel-table td {
-  padding: 0;
-  border-bottom: 1px solid var(--color-border);
-  cursor: pointer;
-  vertical-align: middle;
-}
-
-.phone-panel-table tr:last-child td {
-  border-bottom: none;
-}
-
-.phone-row-name-cell {
-  padding: 6px !important;
-}
-
-.phone-row-name-wrap {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.phone-row-badge {
-  flex-shrink: 0;
-  background: var(--color-navy);
-  color: #fff;
-  border: none;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 7px;
-  cursor: pointer;
-  line-height: 1.6;
-}
-
-.phone-row-badge-empty {
-  background: var(--color-bg);
-  color: var(--color-text-muted);
-  border: 1px dashed var(--color-border);
-  padding: 1px 6px;
-}
-
-.phone-row-badge-input {
-  width: 40px;
-  flex-shrink: 0;
-  border: 1px solid var(--color-orange);
-  border-radius: 999px;
-  font-size: 10px;
-  padding: 2px 6px;
-  text-align: center;
-}
-
-.phone-row-name {
-  font-size: 12.5px;
-  word-break: break-word;
-}
-
-.phone-row-name-input {
-  flex: 1;
-  border: none;
-  background: var(--color-orange-soft);
-  font-size: 12.5px;
-  padding: 2px 4px;
-  font-family: inherit;
-}
-
-.phone-row-name-input:focus,
-.phone-row-badge-input:focus {
-  outline: none;
-}
-
-.phone-row-phone-cell {
-  padding: 6px !important;
-  white-space: nowrap;
-}
-
-.phone-panel-table input {
-  width: 100%;
-  border: none;
-  padding: 6px;
-  font-size: 12.5px;
-  font-family: inherit;
-  background: var(--color-orange-soft);
-}
-
-.phone-panel-table input:focus {
-  outline: none;
-}
-
-.phone-panel-delete-cell {
-  width: 24px;
-  cursor: default !important;
-}
-
-.phone-panel-add {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 8px;
-  background: none;
-  border: 1px dashed var(--color-border);
-  border-radius: 6px;
-  padding: 5px 10px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  width: 100%;
-  justify-content: center;
-}
-
-.phone-panel-add:hover {
-  border-color: var(--color-orange);
-  color: var(--color-orange-dark);
-}
-
-.phone-panel-add:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.phone-panel-new {
-  border-style: dashed;
-  background: var(--color-bg);
-}
-
-.phone-panel-new-input {
-  width: 100%;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 7px 10px;
-  font-size: 12.5px;
-  margin-bottom: 6px;
-}
+echo "적용 완료. npm run dev 재시작 후 확인하세요."

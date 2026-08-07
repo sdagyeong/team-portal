@@ -1,3 +1,7 @@
+#!/bin/bash
+set -e
+
+cat > app/search/page.tsx << 'SEARCHKEEPEOF'
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 import Link from "next/link";
@@ -126,3 +130,6 @@ export default async function SearchPage({
     </div>
   );
 }
+SEARCHKEEPEOF
+
+echo "적용 완료. npm run dev 재시작 후 확인하세요."

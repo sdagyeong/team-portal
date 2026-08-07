@@ -11,14 +11,6 @@ export type SearchResult = {
   href: string
 }
 
-export const SEARCH_CATEGORIES = [
-  { value: '전체', label: '전체' },
-  { value: '업무지시공유', label: '업무지시공유' },
-  { value: '보고서', label: 'AIRPORT · 보고서' },
-  { value: '매뉴얼', label: '자료실 · 매뉴얼' },
-  { value: '계정연락망', label: '계정/연락망' },
-] as const
-
 const DOC_BASE: Record<string, string> = {
   보고서: '/tasks/doc',
   매뉴얼: '/resources/doc',
@@ -31,41 +23,40 @@ const DOC_LABEL: Record<string, string> = {
   계정연락망: '계정/연락망',
 }
 
+function buildNoticeFilter(q: string, field: string) {
+  if (field === '제목') return `title.ilike.%${q}%`
+  if (field === '작성자') return `author.ilike.%${q}%`
+  if (field === '내용') return `content.ilike.%${q}%`
+  return `title.ilike.%${q}%,content.ilike.%${q}%,author.ilike.%${q}%`
+}
+
+function buildDocFilter(q: string, field: string) {
+  if (field === '제목') return `title.ilike.%${q}%`
+  if (field === '작성자') return `author.ilike.%${q}%`
+  if (field === '내용') return `description.ilike.%${q}%`
+  return `title.ilike.%${q}%,description.ilike.%${q}%,author.ilike.%${q}%`
+}
+
 export async function searchAll(
   rawQuery: string,
-  category: string = '전체'
+  field: string = '전체'
 ): Promise<SearchResult[]> {
   const q = rawQuery.trim()
   if (!q) return []
 
-  const includeNotices = category === '전체' || category === '업무지시공유'
-  const includeDocs = category === '전체' || category in DOC_BASE
-
   const [noticeRes, docRes] = await Promise.all([
-    includeNotices
-      ? supabase
-          .from('notices')
-          .select('id, title, author')
-          .or(`title.ilike.%${q}%,content.ilike.%${q}%,author.ilike.%${q}%`)
-          .order('id', { ascending: false })
-          .limit(6)
-      : Promise.resolve({ data: [] as { id: number; title: string; author: string }[] }),
-    includeDocs
-      ? (() => {
-          let query = supabaseData
-            .from('task_documents')
-            .select('id, title, author, doc_type')
-            .or(`title.ilike.%${q}%,description.ilike.%${q}%,author.ilike.%${q}%`)
-            .order('created_at', { ascending: false })
-            .limit(6)
-          if (category !== '전체') {
-            query = query.eq('doc_type', category)
-          }
-          return query
-        })()
-      : Promise.resolve({
-          data: [] as { id: number; title: string; author: string; doc_type: string }[],
-        }),
+    supabase
+      .from('notices')
+      .select('id, title, author')
+      .or(buildNoticeFilter(q, field))
+      .order('id', { ascending: false })
+      .limit(6),
+    supabaseData
+      .from('task_documents')
+      .select('id, title, author, doc_type')
+      .or(buildDocFilter(q, field))
+      .order('created_at', { ascending: false })
+      .limit(6),
   ])
 
   const notices: SearchResult[] = (noticeRes.data ?? []).map((n) => ({
