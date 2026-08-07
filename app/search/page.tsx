@@ -15,10 +15,14 @@ const DOC_LABEL: Record<string, { label: string; base: string }> = {
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; type?: string }>;
 }) {
-  const { q } = await searchParams;
+  const { q, type } = await searchParams;
   const query = (q ?? "").trim();
+  const category = type && type !== "전체" ? type : null;
+
+  const includeNotices = !category || category === "업무지시공유";
+  const includeDocs = !category || category in DOC_LABEL;
 
   let notices: { id: number; title: string; author: string; created_at: string }[] = [];
   let documents: {
@@ -31,16 +35,24 @@ export default async function SearchPage({
 
   if (query) {
     const [noticeRes, docRes] = await Promise.all([
-      supabase
-        .from("notices")
-        .select("id, title, author, created_at")
-        .or(`title.ilike.%${query}%,content.ilike.%${query}%`)
-        .order("id", { ascending: false }),
-      supabaseData
-        .from("task_documents")
-        .select("id, doc_type, title, author, created_at")
-        .or(`title.ilike.%${query}%,description.ilike.%${query}%`)
-        .order("created_at", { ascending: false }),
+      includeNotices
+        ? supabase
+            .from("notices")
+            .select("id, title, author, created_at")
+            .or(`title.ilike.%${query}%,content.ilike.%${query}%,author.ilike.%${query}%`)
+            .order("id", { ascending: false })
+        : Promise.resolve({ data: [] }),
+      includeDocs
+        ? (() => {
+            let q2 = supabaseData
+              .from("task_documents")
+              .select("id, doc_type, title, author, created_at")
+              .or(`title.ilike.%${query}%,description.ilike.%${query}%,author.ilike.%${query}%`)
+              .order("created_at", { ascending: false });
+            if (category) q2 = q2.eq("doc_type", category);
+            return q2;
+          })()
+        : Promise.resolve({ data: [] }),
     ]);
 
     notices = noticeRes.data ?? [];
@@ -55,7 +67,9 @@ export default async function SearchPage({
         <IconFilePreview size={20} className="page-title-icon" /> 검색 결과
       </h1>
       <p className="page-desc">
-        {query ? `"${query}" 검색 결과 ${totalCount}건` : "검색어를 입력해주세요."}
+        {query
+          ? `${category ? `[${DOC_LABEL[category]?.label ?? category}] ` : ""}"${query}" 검색 결과 ${totalCount}건`
+          : "검색어를 입력해주세요."}
       </p>
 
       {query && totalCount === 0 && <p className="empty">일치하는 게시글이 없습니다.</p>}

@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { searchAll, type SearchResult } from "@/app/searchActions";
+import { searchAll, SEARCH_CATEGORIES, type SearchResult } from "@/app/searchActions";
 import { IconFilePreview } from "./icons";
 
 export default function SearchBox() {
+  const [category, setCategory] = useState<string>("전체");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [open, setOpen] = useState(false);
@@ -24,8 +25,7 @@ export default function SearchBox() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  function handleChange(value: string) {
-    setQuery(value);
+  function runSearch(value: string, cat: string) {
     if (timerRef.current) clearTimeout(timerRef.current);
 
     if (!value.trim()) {
@@ -37,7 +37,7 @@ export default function SearchBox() {
     timerRef.current = setTimeout(async () => {
       setLoading(true);
       try {
-        const res = await searchAll(value);
+        const res = await searchAll(value, cat);
         setResults(res);
         setOpen(true);
       } finally {
@@ -46,10 +46,20 @@ export default function SearchBox() {
     }, 300);
   }
 
+  function handleQueryChange(value: string) {
+    setQuery(value);
+    runSearch(value, category);
+  }
+
+  function handleCategoryChange(value: string) {
+    setCategory(value);
+    if (query.trim()) runSearch(query, value);
+  }
+
   function goFullSearch() {
     if (!query.trim()) return;
     setOpen(false);
-    router.push(`/search?q=${encodeURIComponent(query)}`);
+    router.push(`/search?q=${encodeURIComponent(query)}&type=${encodeURIComponent(category)}`);
   }
 
   function goResult(href: string) {
@@ -67,13 +77,26 @@ export default function SearchBox() {
           goFullSearch();
         }}
       >
+        <select
+          className="header-search-category"
+          value={category}
+          onChange={(e) => handleCategoryChange(e.target.value)}
+        >
+          {SEARCH_CATEGORIES.map((c) => (
+            <option key={c.value} value={c.value}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+
         <input
           type="text"
-          placeholder="전체 검색..."
+          placeholder="검색어 입력..."
           value={query}
-          onChange={(e) => handleChange(e.target.value)}
+          onChange={(e) => handleQueryChange(e.target.value)}
           onFocus={() => query.trim() && setOpen(true)}
         />
+
         <button type="submit" aria-label="검색">
           <IconFilePreview size={16} />
         </button>
