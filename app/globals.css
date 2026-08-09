@@ -891,13 +891,15 @@ form > button[type="submit"] {
   color: var(--color-navy);
   font-weight: 700;
   font-size: 12px;
-  border-bottom: 2px solid var(--color-border);
+  border-bottom: 2px solid #000;
+  border-right: 2px solid #000;
   white-space: nowrap;
 }
 
 .edit-table td {
   padding: 0;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 2px solid #000;
+  border-right: 2px solid #000;
   vertical-align: top;
   cursor: pointer;
 }
@@ -966,12 +968,33 @@ form > button[type="submit"] {
   border-bottom: none;
 }
 
-/* 유선 연락망 - 구분별 박스 그리드 */
+.edit-table-merge-col-cell {
+  vertical-align: middle !important;
+  background: var(--color-bg);
+}
+
+.edit-table-row-block-end td {
+  border-bottom: 3px solid #000 !important;
+}
+
+.edit-table-cell-block-end {
+  border-bottom: 3px solid #000 !important;
+}
+
+/* 유선 연락망 - 구분별 박스 (첫 줄은 순서대로, 그 아래는 열별로 이어짐) */
 .phone-panels {
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
   align-items: flex-start;
+}
+
+.phone-panels-column {
+  flex: 1 1 300px;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .phone-panel {
@@ -980,8 +1003,7 @@ form > button[type="submit"] {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
   padding: 14px;
-  width: 320px;
-  flex-shrink: 0;
+  width: 100%;
 }
 
 .phone-panel-title {
@@ -1131,4 +1153,148 @@ form > button[type="submit"] {
   padding: 7px 10px;
   font-size: 12.5px;
   margin-bottom: 6px;
+}
+
+
+
+/* 계정/연락망 - 탭 헤더 + 폴더 내 검색 */
+.contacts-tab-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.local-search-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0 10px;
+  height: 34px;
+  color: var(--color-text-muted);
+}
+
+.local-search-box input {
+  border: none;
+  padding: 0;
+  margin: 0;
+  font-size: 12.5px;
+  width: 200px;
+}
+
+.local-search-box input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* AIRPORT - 공항 정보 카드 (하나의 흰색 박스 안에 4개 항목) */
+.airport-info-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  margin-bottom: 20px;
+  overflow: hidden;
+  max-width: 640px;
+}
+
+.airport-info-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.airport-info-row:last-child {
+  border-bottom: none;
+}
+
+.airport-info-label {
+  width: 90px;
+  flex-shrink: 0;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--color-navy);
+}
+
+.airport-info-value {
+  flex: 1;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.airport-info-image {
+  max-height: 120px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+}
+
+.airport-info-edit-btn {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--color-navy);
+  flex-shrink: 0;
+}
+
+.airport-info-edit-btn:hover {
+  border-color: var(--color-orange);
+  color: var(--color-orange-dark);
+}
+
+.airport-info-clear-btn {
+  background: var(--color-bg);
+  border: 1px solid #fda29b;
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--color-danger);
+  flex-shrink: 0;
+}
+
+.airport-info-clear-btn:hover {
+  background: #fef3f2;
+}
+
+.airport-info-clear-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.airport-info-edit-form {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.airport-info-edit-form input[type="text"] {
+  flex: 1;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.airport-info-edit-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.airport-info-edit-actions button {
+  font-size: 12px;
+  padding: 6px 10px;
 }

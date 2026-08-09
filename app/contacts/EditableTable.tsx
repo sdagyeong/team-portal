@@ -5,26 +5,84 @@ import { IconTrash, IconPlus } from '@/components/icons'
 
 export type Column = { key: string; label: string; width?: string }
 
+type Row = Record<string, string | number | null>
+
+function computeMergeGroups(rows: Row[], mergeColumns: string[]) {
+  const spanAt: Record<number, Record<string, { span: number; ids: number[] }>> = {}
+  const hidden: Record<number, Set<string>> = {}
+
+  mergeColumns.forEach((field) => {
+    let i = 0
+    while (i < rows.length) {
+      const val = rows[i][field]
+      if (val === null || val === undefined || val === '') {
+        i += 1
+        continue
+      }
+      let j = i + 1
+      while (j < rows.length && rows[j][field] === val) j += 1
+      const span = j - i
+      if (span > 1) {
+        if (!spanAt[i]) spanAt[i] = {}
+        spanAt[i][field] = { span, ids: rows.slice(i, j).map((r) => r.id as number) }
+        for (let k = i + 1; k < j; k++) {
+          if (!hidden[k]) hidden[k] = new Set()
+          hidden[k].add(field)
+        }
+      }
+      i = j
+    }
+  })
+
+  return { spanAt, hidden }
+}
+
+// 지정한 컬럼 기준으로, 연속된 같은 값 묶음의 "마지막 행" 인덱스들을 반환 (구간 경계선용)
+function computeRunEnds(rows: Row[], field: string): Set<number> {
+  const ends = new Set<number>()
+  for (let i = 0; i < rows.length; i++) {
+    const isLast = i === rows.length - 1 || rows[i][field] !== rows[i + 1][field]
+    if (isLast) ends.add(i)
+  }
+  return ends
+}
+
 export default function EditableTable({
   rows,
   columns,
   onUpdateCell,
   onDeleteRow,
   onAddRow,
+  mergeColumns = [],
+  boldBoundaryColumns,
 }: {
-  rows: Record<string, string | number | null>[]
+  rows: Row[]
   columns: Column[]
   onUpdateCell: (id: number, field: string, value: string) => Promise<void>
   onDeleteRow: (id: number) => Promise<void>
   onAddRow: () => Promise<void>
+  mergeColumns?: string[]
+  boldBoundaryColumns?: string[]
 }) {
   const [editing, setEditing] = useState<{ id: number; field: string } | null>(null)
   const [busy, setBusy] = useState(false)
 
-  async function save(id: number, field: string, value: string) {
+  const { spanAt, hidden } = computeMergeGroups(rows, mergeColumns)
+
+  const boundaryCols = boldBoundaryColumns ?? mergeColumns
+  const blockEnds = new Set<number>()
+  boundaryCols.forEach((field) => {
+    computeRunEnds(rows, field).forEach((idx) => blockEnds.add(idx))
+  })
+
+  async function save(id: number, field: string, value: string, groupIds?: number[]) {
     setBusy(true)
     try {
-      await onUpdateCell(id, field, value)
+      if (groupIds && groupIds.length > 1) {
+        await Promise.all(groupIds.map((gid) => onUpdateCell(gid, field, value)))
+      } else {
+        await onUpdateCell(id, field, value)
+      }
     } catch (e) {
       alert(e instanceof Error ? e.message : '오류가 발생했습니다.')
     } finally {
@@ -77,16 +135,40 @@ export default function EditableTable({
               </td>
             </tr>
           )}
-          {rows.map((row) => {
+          {rows.map((row, rowIndex) => {
             const id = row.id as number
+            const isBlockEndRow = blockEnds.has(rowIndex)
             return (
-              <tr key={id}>
+              <tr key={id} className={isBlockEndRow ? 'edit-table-row-block-end' : undefined}>
                 {columns.map((c) => {
+                  const isMergeCol = mergeColumns.includes(c.key)
+
+                  if (isMergeCol && hidden[rowIndex]?.has(c.key)) {
+                    return null
+                  }
+
+                  const mergeInfo = isMergeCol ? spanAt[rowIndex]?.[c.key] : undefined
+                  const span = mergeInfo?.span ?? 1
+                  // 병합된 셀은 시작 행에만 존재하므로, 병합이 끝나는 실제 행 기준으로
+                  // 굵은 경계선 여부를 따로 판정해서 셀 자체에 직접 적용한다.
+                  const endIndex = rowIndex + span - 1
+                  const isCellBlockEnd = blockEnds.has(endIndex)
+
                   const isEditing = editing?.id === id && editing.field === c.key
                   const value = row[c.key]
+
+                  const cellClassNames = [
+                    isMergeCol ? 'edit-table-merge-col-cell' : '',
+                    isMergeCol && isCellBlockEnd ? 'edit-table-cell-block-end' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')
+
                   return (
                     <td
                       key={c.key}
+                      rowSpan={mergeInfo?.span}
+                      className={cellClassNames || undefined}
                       onClick={() => !isEditing && setEditing({ id, field: c.key })}
                     >
                       {isEditing ? (
@@ -94,7 +176,7 @@ export default function EditableTable({
                           autoFocus
                           defaultValue={(value as string) ?? ''}
                           disabled={busy}
-                          onBlur={(e) => save(id, c.key, e.target.value)}
+                          onBlur={(e) => save(id, c.key, e.target.value, mergeInfo?.ids)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' && !e.shiftKey) {
                               e.preventDefault()

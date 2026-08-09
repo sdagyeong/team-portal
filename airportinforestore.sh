@@ -1,338 +1,7 @@
 #!/bin/bash
 set -e
 
-mkdir -p app app/contacts
-
-cat > app/contacts/contactActions.ts << 'PHONEPANELEOF'
-'use server'
-
-import { supabase } from '@/lib/supabaseClient'
-import { revalidatePath } from 'next/cache'
-
-// ---------- 시스템 계정 ----------
-export async function addSystemAccountRow() {
-  const { error } = await supabase.from('system_accounts').insert({})
-  if (error) {
-    console.error(error)
-    throw new Error('추가에 실패했습니다.')
-  }
-  revalidatePath('/contacts')
-}
-
-export async function updateSystemAccountCell(id: number, field: string, value: string) {
-  const { error } = await supabase
-    .from('system_accounts')
-    .update({ [field]: value, updated_at: new Date().toISOString() })
-    .eq('id', id)
-  if (error) {
-    console.error(error)
-    throw new Error('저장에 실패했습니다.')
-  }
-  revalidatePath('/contacts')
-}
-
-export async function deleteSystemAccountRow(id: number) {
-  const { error } = await supabase.from('system_accounts').delete().eq('id', id)
-  if (error) {
-    console.error(error)
-    throw new Error('삭제에 실패했습니다.')
-  }
-  revalidatePath('/contacts')
-}
-
-// ---------- 유선 연락망 ----------
-export async function addPhoneContactRow(
-  position: string = '',
-  name: string = '',
-  office_phone: string = ''
-) {
-  const { error } = await supabase
-    .from('phone_contacts')
-    .insert({ position, name, office_phone })
-  if (error) {
-    console.error(error)
-    throw new Error('추가에 실패했습니다.')
-  }
-  revalidatePath('/contacts')
-}
-
-export async function updatePhoneContactCell(id: number, field: string, value: string) {
-  const { error } = await supabase
-    .from('phone_contacts')
-    .update({ [field]: value, updated_at: new Date().toISOString() })
-    .eq('id', id)
-  if (error) {
-    console.error(error)
-    throw new Error('저장에 실패했습니다.')
-  }
-  revalidatePath('/contacts')
-}
-
-export async function deletePhoneContactRow(id: number) {
-  const { error } = await supabase.from('phone_contacts').delete().eq('id', id)
-  if (error) {
-    console.error(error)
-    throw new Error('삭제에 실패했습니다.')
-  }
-  revalidatePath('/contacts')
-}
-PHONEPANELEOF
-
-cat > app/contacts/PhoneContactPanels.tsx << 'PHONEPANELEOF'
-'use client'
-
-import { useState } from 'react'
-import { IconTrash, IconPlus } from '@/components/icons'
-import {
-  updatePhoneContactCell,
-  deletePhoneContactRow,
-  addPhoneContactRow,
-} from './contactActions'
-
-type Row = {
-  id: number
-  name: string | null
-  position: string | null
-  office_phone: string | null
-  mobile: string | null
-  note: string | null
-}
-
-const FIELDS: { key: 'name' | 'office_phone' | 'note'; label: string }[] = [
-  { key: 'name', label: '명칭' },
-  { key: 'office_phone', label: '전화번호' },
-  { key: 'note', label: '비고' },
-]
-
-export default function PhoneContactPanels({ rows }: { rows: Row[] }) {
-  const [editing, setEditing] = useState<{ id: number; field: string } | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [newCategory, setNewCategory] = useState('')
-  const [newName, setNewName] = useState('')
-  const [newPhone, setNewPhone] = useState('')
-
-  const groups = new Map<string, Row[]>()
-  rows.forEach((r) => {
-    const key = r.position?.trim() || '미분류'
-    if (!groups.has(key)) groups.set(key, [])
-    groups.get(key)!.push(r)
-  })
-
-  async function save(id: number, field: string, value: string) {
-    setBusy(true)
-    try {
-      await updatePhoneContactCell(id, field, value)
-    } catch (e) {
-      alert(e instanceof Error ? e.message : '오류가 발생했습니다.')
-    } finally {
-      setBusy(false)
-      setEditing(null)
-    }
-  }
-
-  async function handleDelete(id: number) {
-    if (!confirm('이 항목을 삭제할까요?')) return
-    setBusy(true)
-    try {
-      await deletePhoneContactRow(id)
-    } catch (e) {
-      alert(e instanceof Error ? e.message : '오류가 발생했습니다.')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function handleAddToCategory(category: string) {
-    setBusy(true)
-    try {
-      await addPhoneContactRow(category)
-    } catch (e) {
-      alert(e instanceof Error ? e.message : '오류가 발생했습니다.')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function handleCreateCategory() {
-    if (!newCategory.trim()) return
-    setBusy(true)
-    try {
-      await addPhoneContactRow(newCategory.trim(), newName.trim(), newPhone.trim())
-      setNewCategory('')
-      setNewName('')
-      setNewPhone('')
-    } catch (e) {
-      alert(e instanceof Error ? e.message : '오류가 발생했습니다.')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <div className="phone-panels">
-      {[...groups.entries()].map(([category, catRows]) => (
-        <div key={category} className="phone-panel">
-          <h3 className="phone-panel-title">{category}</h3>
-          <table className="phone-panel-table">
-            <tbody>
-              {catRows.map((row) => (
-                <tr key={row.id}>
-                  {FIELDS.map((f) => {
-                    const isEditing = editing?.id === row.id && editing.field === f.key
-                    const value = row[f.key]
-                    return (
-                      <td
-                        key={f.key}
-                        onClick={() => !isEditing && setEditing({ id: row.id, field: f.key })}
-                      >
-                        {isEditing ? (
-                          <input
-                            autoFocus
-                            defaultValue={value ?? ''}
-                            disabled={busy}
-                            onBlur={(e) => save(row.id, f.key, e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
-                              if (e.key === 'Escape') setEditing(null)
-                            }}
-                          />
-                        ) : value ? (
-                          <span className="edit-table-cell-value">{value}</span>
-                        ) : (
-                          <span className="edit-table-cell-empty">-</span>
-                        )}
-                      </td>
-                    )
-                  })}
-                  <td className="phone-panel-delete-cell">
-                    <button
-                      type="button"
-                      className="doc-row-delete"
-                      onClick={() => handleDelete(row.id)}
-                      aria-label="삭제"
-                    >
-                      <IconTrash />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <button
-            type="button"
-            className="phone-panel-add"
-            onClick={() => handleAddToCategory(category)}
-            disabled={busy}
-          >
-            <IconPlus size={12} /> 항목 추가
-          </button>
-        </div>
-      ))}
-
-      <div className="phone-panel phone-panel-new">
-        <h3 className="phone-panel-title">+ 새 구분 만들기</h3>
-        <input
-          className="phone-panel-new-input"
-          placeholder="구분 이름 (예: 국제선 카운터)"
-          value={newCategory}
-          onChange={(e) => setNewCategory(e.target.value)}
-        />
-        <input
-          className="phone-panel-new-input"
-          placeholder="명칭"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-        />
-        <input
-          className="phone-panel-new-input"
-          placeholder="전화번호"
-          value={newPhone}
-          onChange={(e) => setNewPhone(e.target.value)}
-        />
-        <button
-          type="button"
-          className="phone-panel-add"
-          onClick={handleCreateCategory}
-          disabled={busy}
-        >
-          <IconPlus size={12} /> 구분 추가
-        </button>
-      </div>
-    </div>
-  )
-}
-PHONEPANELEOF
-
-cat > app/contacts/ContactsBoard.tsx << 'PHONEPANELEOF'
-'use client'
-
-import { useState } from 'react'
-import EditableTable, { type Column } from './EditableTable'
-import PhoneContactPanels from './PhoneContactPanels'
-import {
-  addSystemAccountRow,
-  updateSystemAccountCell,
-  deleteSystemAccountRow,
-} from './contactActions'
-
-const ACCOUNT_COLUMNS: Column[] = [
-  { key: 'group_name', label: '그룹', width: '110px' },
-  { key: 'system_name', label: '시스템명', width: '160px' },
-  { key: 'url', label: 'URL', width: '180px' },
-  { key: 'detail', label: '내용', width: '120px' },
-  { key: 'account_id', label: 'ID', width: '110px' },
-  { key: 'password', label: 'PW', width: '110px' },
-  { key: 'note', label: '비고' },
-]
-
-type Row = Record<string, string | number | null>
-
-export default function ContactsBoard({
-  systemAccounts,
-  phoneContacts,
-}: {
-  systemAccounts: Row[]
-  phoneContacts: Row[]
-}) {
-  const [tab, setTab] = useState<'system' | 'phone'>('system')
-
-  return (
-    <div className="task-board">
-      <div className="task-folder-tabs">
-        <button
-          type="button"
-          className={`task-folder-tab ${tab === 'system' ? 'active' : ''}`}
-          onClick={() => setTab('system')}
-        >
-          시스템 계정
-        </button>
-        <button
-          type="button"
-          className={`task-folder-tab ${tab === 'phone' ? 'active' : ''}`}
-          onClick={() => setTab('phone')}
-        >
-          유선 연락망
-        </button>
-      </div>
-
-      {tab === 'system' ? (
-        <EditableTable
-          rows={systemAccounts}
-          columns={ACCOUNT_COLUMNS}
-          onUpdateCell={updateSystemAccountCell}
-          onDeleteRow={deleteSystemAccountRow}
-          onAddRow={addSystemAccountRow}
-        />
-      ) : (
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        <PhoneContactPanels rows={phoneContacts as any} />
-      )}
-    </div>
-  )
-}
-PHONEPANELEOF
-
-cat > app/globals.css << 'PHONEPANELEOF'
+cat > app/globals.css << 'AIRPORTINFORESTOREEOF'
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css");
 
 :root {
@@ -1226,13 +895,15 @@ form > button[type="submit"] {
   color: var(--color-navy);
   font-weight: 700;
   font-size: 12px;
-  border-bottom: 2px solid var(--color-border);
+  border-bottom: 2px solid #000;
+  border-right: 2px solid #000;
   white-space: nowrap;
 }
 
 .edit-table td {
   padding: 0;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 2px solid #000;
+  border-right: 2px solid #000;
   vertical-align: top;
   cursor: pointer;
 }
@@ -1301,12 +972,33 @@ form > button[type="submit"] {
   border-bottom: none;
 }
 
-/* 유선 연락망 - 구분별 박스 그리드 */
+.edit-table-merge-col-cell {
+  vertical-align: middle !important;
+  background: var(--color-bg);
+}
+
+.edit-table-row-block-end td {
+  border-bottom: 3px solid #000 !important;
+}
+
+.edit-table-cell-block-end {
+  border-bottom: 3px solid #000 !important;
+}
+
+/* 유선 연락망 - 구분별 박스 (첫 줄은 순서대로, 그 아래는 열별로 이어짐) */
 .phone-panels {
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
   align-items: flex-start;
+}
+
+.phone-panels-column {
+  flex: 1 1 300px;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .phone-panel {
@@ -1315,8 +1007,7 @@ form > button[type="submit"] {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
   padding: 14px;
-  width: 320px;
-  flex-shrink: 0;
+  width: 100%;
 }
 
 .phone-panel-title {
@@ -1338,19 +1029,75 @@ form > button[type="submit"] {
   padding: 0;
   border-bottom: 1px solid var(--color-border);
   cursor: pointer;
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 .phone-panel-table tr:last-child td {
   border-bottom: none;
 }
 
-.phone-panel-table .edit-table-cell-value,
-.phone-panel-table .edit-table-cell-empty {
-  padding: 6px 6px;
-  display: block;
-  white-space: pre-wrap;
+.phone-row-name-cell {
+  padding: 6px !important;
+}
+
+.phone-row-name-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.phone-row-badge {
+  flex-shrink: 0;
+  background: var(--color-navy);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  cursor: pointer;
+  line-height: 1.6;
+}
+
+.phone-row-badge-empty {
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  border: 1px dashed var(--color-border);
+  padding: 1px 6px;
+}
+
+.phone-row-badge-input {
+  width: 40px;
+  flex-shrink: 0;
+  border: 1px solid var(--color-orange);
+  border-radius: 999px;
+  font-size: 10px;
+  padding: 2px 6px;
+  text-align: center;
+}
+
+.phone-row-name {
+  font-size: 12.5px;
   word-break: break-word;
+}
+
+.phone-row-name-input {
+  flex: 1;
+  border: none;
+  background: var(--color-orange-soft);
+  font-size: 12.5px;
+  padding: 2px 4px;
+  font-family: inherit;
+}
+
+.phone-row-name-input:focus,
+.phone-row-badge-input:focus {
+  outline: none;
+}
+
+.phone-row-phone-cell {
+  padding: 6px !important;
+  white-space: nowrap;
 }
 
 .phone-panel-table input {
@@ -1411,6 +1158,150 @@ form > button[type="submit"] {
   font-size: 12.5px;
   margin-bottom: 6px;
 }
-PHONEPANELEOF
+
+
+
+/* 계정/연락망 - 탭 헤더 + 폴더 내 검색 */
+.contacts-tab-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.local-search-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0 10px;
+  height: 34px;
+  color: var(--color-text-muted);
+}
+
+.local-search-box input {
+  border: none;
+  padding: 0;
+  margin: 0;
+  font-size: 12.5px;
+  width: 200px;
+}
+
+.local-search-box input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* AIRPORT - 공항 정보 카드 (하나의 흰색 박스 안에 4개 항목) */
+.airport-info-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  margin-bottom: 20px;
+  overflow: hidden;
+  max-width: 640px;
+}
+
+.airport-info-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.airport-info-row:last-child {
+  border-bottom: none;
+}
+
+.airport-info-label {
+  width: 90px;
+  flex-shrink: 0;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--color-navy);
+}
+
+.airport-info-value {
+  flex: 1;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.airport-info-image {
+  max-height: 120px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+}
+
+.airport-info-edit-btn {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--color-navy);
+  flex-shrink: 0;
+}
+
+.airport-info-edit-btn:hover {
+  border-color: var(--color-orange);
+  color: var(--color-orange-dark);
+}
+
+.airport-info-clear-btn {
+  background: var(--color-bg);
+  border: 1px solid #fda29b;
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--color-danger);
+  flex-shrink: 0;
+}
+
+.airport-info-clear-btn:hover {
+  background: #fef3f2;
+}
+
+.airport-info-clear-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.airport-info-edit-form {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.airport-info-edit-form input[type="text"] {
+  flex: 1;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.airport-info-edit-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.airport-info-edit-actions button {
+  font-size: 12px;
+  padding: 6px 10px;
+}
+AIRPORTINFORESTOREEOF
 
 echo "적용 완료. npm run dev 재시작 후 확인하세요."
