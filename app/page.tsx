@@ -4,19 +4,25 @@ export const revalidate = 0;
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { supabase as supabaseData } from "@/lib/supabaseClient";
-import { IconPlane, IconPin } from "@/components/icons";
+import { getAllAirportMetar, getAllAirportTaf, getAllWarnings } from "@/lib/kmaWeather";
+import { IconPlane, IconPin, IconCloud } from "@/components/icons";
 import MealBoard from "./MealBoard";
 import SearchBox from "@/components/SearchBox";
+import WeatherPanel from "@/components/WeatherPanel";
 
 export default async function DashboardPage() {
-  const [{ data: notices }, { data: mealInfo }] = await Promise.all([
-    supabase
-      .from("notices")
-      .select("*")
-      .order("id", { ascending: false })
-      .limit(3),
-    supabaseData.from("meal_board").select("*").eq("id", 1).maybeSingle(),
-  ]);
+  const [{ data: notices }, { data: mealInfo }, metarList, tafList, warnings] =
+    await Promise.all([
+      supabase
+        .from("notices")
+        .select("*")
+        .order("id", { ascending: false })
+        .limit(3),
+      supabaseData.from("meal_board").select("*").eq("id", 1).maybeSingle(),
+      getAllAirportMetar(),
+      getAllAirportTaf(),
+      getAllWarnings(),
+    ]);
 
   return (
     <>
@@ -57,6 +63,16 @@ export default async function DashboardPage() {
           </ul>
         </section>
       </div>
+
+      {/* 공항별 날씨 (METAR / TAF / 경보) */}
+      <section className="dashboard-card weather-card">
+        <div className="dashboard-card-header">
+          <h3>
+            <IconCloud size={15} className="page-title-icon" /> 공항별 날씨
+          </h3>
+        </div>
+        <WeatherPanel metarList={metarList} tafList={tafList} warnings={warnings} />
+      </section>
 
       <MealBoard info={mealInfo ?? null} />
     </>

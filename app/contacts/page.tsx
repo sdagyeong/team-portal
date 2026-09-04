@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabaseClient'
+import { isNew } from '@/lib/isNew'
 import ContactsBoard from './ContactsBoard'
 import { IconContact } from '@/components/icons'
 

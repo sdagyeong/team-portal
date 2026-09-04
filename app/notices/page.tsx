@@ -1,3 +1,4 @@
+import { isNew } from '@/lib/isNew'
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 import Link from "next/link";
@@ -48,7 +49,7 @@ export default async function NoticesPage() {
               </form>
 
               <Link href={`/notices/${notice.id}`} className="notice-title-link">
-                <h3>{notice.title}</h3>
+                <h3>{notice.title} {isNew(notice.created_at) && <span className="new-badge">NEW</span>}</h3>
               </Link>
 
               <div

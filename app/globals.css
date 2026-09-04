@@ -1298,3 +1298,280 @@ form > button[type="submit"] {
   font-size: 12px;
   padding: 6px 10px;
 }
+
+/* 메인화면 - 공항별 METAR */
+.metar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.metar-row {
+  display: grid;
+  grid-template-columns: 44px 1fr 1fr 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 12.5px;
+}
+
+.metar-row:last-child {
+  border-bottom: none;
+}
+
+.metar-code {
+  font-weight: 800;
+  color: var(--color-navy);
+}
+
+.metar-temp {
+  font-weight: 700;
+}
+
+.metar-wind,
+.metar-qnh {
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.metar-cavok {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+  white-space: nowrap;
+}
+
+.metar-cavok.not-cavok {
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+}
+
+.weather-card {
+  margin-top: 16px;
+  max-width: 640px;
+}
+
+/* 날씨 패널 - METAR/TAF/경보 탭 */
+.weather-tabs {
+  margin-bottom: 10px;
+}
+
+.taf-row {
+  display: grid;
+  grid-template-columns: 44px 1.6fr 1fr 0.8fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 12px;
+}
+
+.taf-row:last-child {
+  border-bottom: none;
+}
+
+.taf-period {
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.warning-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.warning-item {
+  border: 1px solid #fda29b;
+  background: #fef3f2;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.warning-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.warning-item-name {
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.warning-item-valid {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.warning-item-msg {
+  margin: 0;
+  font-family: inherit;
+  font-size: 11.5px;
+  white-space: pre-wrap;
+  color: var(--color-danger);
+}
+
+/* 날씨 패널 - 헤더 배너 + 통일 글씨체 + 경보 표 형식 */
+.metar-row,
+.taf-row,
+.warning-row {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+  letter-spacing: 0.2px;
+}
+
+.metar-header-row {
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  border-bottom: 2px solid var(--color-navy);
+  padding-bottom: 6px;
+}
+
+.warning-row {
+  display: grid;
+  grid-template-columns: 54px 140px 1fr;
+  align-items: start;
+  gap: 8px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 12px;
+}
+
+.warning-row:last-child {
+  border-bottom: none;
+}
+
+.warning-row-msg {
+  color: var(--color-danger);
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+/* 공항별 METAR/TAF/특보 표 (검정 테두리) */
+.weather-airport-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.weather-airport-block {
+  max-width: 100%;
+}
+
+.weather-airport-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--color-navy);
+  margin: 0 0 6px 0;
+}
+
+.weather-airport-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+.weather-airport-table th,
+.weather-airport-table td {
+  border: 1px solid #000;
+  padding: 7px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.weather-airport-table th {
+  font-family: inherit;
+  font-weight: 700;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 11px;
+  white-space: nowrap;
+  width: 70px;
+}
+
+.weather-warning-line {
+  color: var(--color-danger);
+}
+
+.weather-warning-line + .weather-warning-line {
+  margin-top: 4px;
+}
+
+.weather-card {
+  max-width: 900px;
+}
+
+.new-badge {
+  display: inline-block;
+  background: var(--color-orange);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 999px;
+  margin-left: 6px;
+  vertical-align: middle;
+  letter-spacing: 0.3px;
+}
+/* 주기장요도 이미지 크게 표시 */
+.airport-info-image {
+  max-height: none;
+  max-width: 100%;
+  width: auto;
+  height: auto;
+}
+.airport-report-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-orange);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.airport-report-link:hover {
+  background: var(--color-orange-dark);
+}
+/* 주기장요도 이미지 - 카드 폭 제한 없이 화면 최대로 확대 */
+.airport-info-card {
+  max-width: 100%;
+}
+
+.airport-info-image {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  max-height: none;
+}
+/* 주기장요도 카드 폭을 상단 보고서 배너와 동일하게 꽉 채우기 */
+.airport-info-card {
+  width: 100%;
+}
+/* 주기장요도 카드 폭 강제 적용 (다른 규칙보다 우선) */
+.task-board .airport-info-card {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.task-board .airport-info-image {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  max-height: none !important;
+}

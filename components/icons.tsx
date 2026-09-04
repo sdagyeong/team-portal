@@ -144,3 +144,12 @@ export function IconContact({ size = 17, className }: IconProps) {
     </svg>
   );
 }
+
+export function IconCloud({ size = 15, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} {...base}>
+      <path d="M7 18a4 4 0 0 1-.5-7.97A5 5 0 0 1 16 8.5a3.5 3.5 0 0 1 1 6.9" />
+      <path d="M17 18H7" />
+    </svg>
+  );
+}

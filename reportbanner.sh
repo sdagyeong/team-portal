@@ -1,4 +1,9 @@
-'use client'
+#!/bin/bash
+set -e
+
+mkdir -p app/tasks
+
+cat > app/tasks/TaskBoard.tsx << 'BOARDEOF'
 
 import { isNew } from '@/lib/isNew'
 import { useState } from 'react'
@@ -221,3 +226,27 @@ export default function TaskBoard({
     </div>
   )
 }
+BOARDEOF
+
+cat >> app/globals.css << 'CSSEOF'
+.airport-report-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-orange);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.airport-report-link:hover {
+  background: var(--color-orange-dark);
+}
+CSSEOF
+
+echo "적용 완료. npm run dev 재시작 후 확인하세요."

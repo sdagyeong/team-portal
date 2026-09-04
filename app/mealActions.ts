@@ -11,7 +11,8 @@ export async function saveMealImage(formData: FormData) {
     throw new Error('이미지를 선택해주세요.')
   }
 
-  const filePath = `meal/${side}_${Date.now()}_${file.name}`
+  const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
+  const filePath = `meal/${side}_${Date.now()}_${safeName}`
 
   const { error: uploadError } = await supabase.storage
     .from('task-documents')

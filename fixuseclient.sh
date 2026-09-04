@@ -1,3 +1,9 @@
+#!/bin/bash
+set -e
+
+mkdir -p app/tasks
+
+cat > app/tasks/TaskBoard.tsx << 'FIXCLIENTEOF'
 'use client'
 
 import { isNew } from '@/lib/isNew'
@@ -221,3 +227,6 @@ export default function TaskBoard({
     </div>
   )
 }
+FIXCLIENTEOF
+
+echo "적용 완료. npm run dev 재시작 후 확인하세요."

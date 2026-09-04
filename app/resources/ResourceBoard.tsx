@@ -1,5 +1,6 @@
 'use client'
 
+import { isNew } from '@/lib/isNew'
 import { useState } from 'react'
 import Link from 'next/link'
 import { deleteDocument } from './documentActions'
@@ -31,6 +32,7 @@ function DocList({ docs }: { docs: Doc[] }) {
           <Link href={`/resources/doc/${doc.id}`} className="doc-row-title">
             {doc.file_url && '📎 '}
             {doc.title}
+            {isNew(doc.created_at) && <span className="new-badge">NEW</span>}
           </Link>
           <span className="doc-row-author">{doc.author}</span>
           <span className="doc-row-date">

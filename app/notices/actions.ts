@@ -13,7 +13,8 @@ export async function addNotice(formData: FormData) {
   let file_name: string | null = null;
 
   if (file && file.size > 0) {
-    const filePath = `${Date.now()}_${file.name}`;
+    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
+    const filePath = `${Date.now()}_${safeName}`;
 
     const { error: uploadError } = await supabase.storage
       .from("task-documents")

@@ -12,7 +12,8 @@ export async function saveAirportInfo(formData: FormData) {
   let updateValue: string | null = textValue
 
   if (field === 'apron_diagram_url' && file && file.size > 0) {
-    const filePath = `airport-info/${airport}_${Date.now()}_${file.name}`
+    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
+    const filePath = `airport-info/${airport}_${Date.now()}_${safeName}`
 
     const { error: uploadError } = await supabase.storage
       .from('task-documents')
