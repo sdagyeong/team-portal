@@ -97,7 +97,7 @@ export default function ContactsBoard({
           onUpdateCell={updateSystemAccountCell}
           onDeleteRow={deleteSystemAccountRow}
           onAddRow={addSystemAccountRow}
-          mergeColumns={['group_name', 'system_name', 'url']}
+          mergeColumns={['group_name', 'system_name', 'url', 'note']}
           boldBoundaryColumns={['group_name', 'system_name']}
         />
       ) : (

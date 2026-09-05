@@ -1681,3 +1681,30 @@ form > button[type="submit"] {
     margin: 0 8px;
   }
 }
+
+/* 계정 표 - 비고 칸 최소 너비 확보 및 가독성 개선 */
+.edit-table td:last-child {
+  min-width: 260px;
+}
+
+.edit-table-cell-value {
+  line-height: 1.6;
+}
+/* 대시보드 카드 폭 통일 (큰 모니터에서도 일관되게) */
+.dashboard-grid {
+  max-width: 900px;
+}
+
+.meal-card {
+  max-width: 900px;
+}
+
+/* 날씨 표 - 구분 칸이 화면 넓어져도 늘어나지 않도록 고정 */
+.weather-airport-table {
+  table-layout: fixed;
+}
+
+.weather-airport-table th:first-child,
+.weather-airport-table td:first-child {
+  width: 70px;
+}
