@@ -1727,3 +1727,14 @@ form > button[type="submit"] {
   font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
   font-weight: 700;
 }
+/* 날씨 표 - 구분 칸 1/4 크기로 축소 고정, 글씨 한 단계 확대 */
+.weather-airport-table {
+  font-size: 13px;
+}
+
+.weather-airport-table th:first-child,
+.weather-airport-table td:first-child {
+  width: 14px;
+  white-space: nowrap;
+  overflow: visible;
+}
