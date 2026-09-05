@@ -157,10 +157,10 @@ async function fetchTaf(icao: string): Promise<Omit<AirportTaf, 'code' | 'icao' 
     const gust = extractTag(xml, 'windGustSpeed')
     const cavok = /cloudAndVisibilityOK="true"/.test(xml)
 
-    const maxTemps = [...xml.matchAll(/<iwxxm:maximumAirTemperature[^>]*>([^<]+)</g)].map((m) =>
+    const maxTemps = [...xml.matchAll(/<iwxxm:maximumAirTemperature(?!Time)[^>]*>([^<]+)</g)].map((m) =>
       Number(m[1])
     )
-    const minTemps = [...xml.matchAll(/<iwxxm:minimumAirTemperature[^>]*>([^<]+)</g)].map((m) =>
+    const minTemps = [...xml.matchAll(/<iwxxm:minimumAirTemperature(?!Time)[^>]*>([^<]+)</g)].map((m) =>
       Number(m[1])
     )
 
